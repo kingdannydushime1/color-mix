@@ -2887,7 +2887,7 @@ export default class MainScene extends Phaser.Scene {
     // Variable timers based on target complexity: 1 color = 20s, 2 = 30s, 3 = 40s.
     // Only set on the first flask — timer continues through subsequent orders.
     const activeColorsCount = (target.r > 0 ? 1 : 0) + (target.b > 0 ? 1 : 0) + (target.y > 0 ? 1 : 0);
-    const timeForDifficulty = activeColorsCount === 1 ? 20 : activeColorsCount === 2 ? 30 : 40;
+    const timeForDifficulty = activeColorsCount === 1 ? 20 : activeColorsCount === 2 ? 30 : 50;
     if (this.completedFlasksInLevel === 0) {
         this.timeLeft = timeForDifficulty;
         this.timerText.setColor('#ffd700');
