@@ -135,10 +135,11 @@ export default class MainScene extends Phaser.Scene {
   private levelCoinsEarnedInSession = 0;
   private currentChallengeModifier: string | null = null;
   private challengeModifiers = [
-    { id: 'speed', name: '⚡ SPEED', desc: 'Fast completion = 2x coins!', color: '#ffeb3b', rewardMult: 2, timeLimit: 12 },
-    { id: 'precision', name: '🎯 PRECISION', desc: 'Must be >95% match!', color: '#ff6b81', rewardMult: 1.5, timeLimit: 25 },
-    { id: 'bonus', name: '💰 BONUS', desc: '2x coins!', color: '#ffd700', rewardMult: 2, timeLimit: 20 },
+    { id: 'speed', name: '⚡ SPEED', desc: 'Fast completion = 2x coins!', color: '#ffeb3b', rewardMult: 2, timeMult: 0.7 },
+    { id: 'precision', name: '🎯 PRECISION', desc: 'Must be >95% match!', color: '#ff6b81', rewardMult: 1.5, timeMult: 1.2 },
+    { id: 'bonus', name: '💰 BONUS', desc: '2x coins!', color: '#ffd700', rewardMult: 2, timeMult: 1 },
   ];
+  private levelTimerBase = 0;
   private challengeModifierText: Phaser.GameObjects.Text | null = null;
   private activeConfettiGroup!: Phaser.GameObjects.Group;
   private undoIndicatorText!: Phaser.GameObjects.Text;
@@ -2783,10 +2784,6 @@ export default class MainScene extends Phaser.Scene {
      } else {
        this.currentChallengeModifier = null;
      }
-     const modifier = this.getFlaskModifier();
-     if (modifier && this.completedFlasksInLevel === 0) {
-       this.timeLeft = modifier.timeLimit;
-     }
      const target = Colors.generateTarget(this.level * 10 + this.completedFlasksInLevel);
      const x = -100;
     const y = this.beltY - 45; 
@@ -2887,10 +2884,9 @@ export default class MainScene extends Phaser.Scene {
     this.pendingRewardCoins = reward;
     this.targetCoinsText.setText(`$+${reward}`);
 
-    // Timer set once per level based on total flasks count: 1 flask = 12s, 2 = 18s, 3 = 25s.
-    // +1s per correct drop added in handleDropFlask.
-    if (this.completedFlasksInLevel === 0) {
-        this.timeLeft = this.totalFlasksInLevel === 1 ? 12 : this.totalFlasksInLevel === 2 ? 18 : 25;
+    if (this.completedFlasksInLevel === 0 && this.levelTimerBase === 0) {
+        this.levelTimerBase = this.calcLevelTimer(this.level, this.totalFlasksInLevel);
+        this.timeLeft = this.levelTimerBase;
         this.timerText.setColor('#ffd700');
         this.timerText.setText(`⏱️ ${this.timeLeft}s`);
     }
@@ -4232,6 +4228,21 @@ export default class MainScene extends Phaser.Scene {
       return this.challengeModifiers.find(m => m.id === this.currentChallengeModifier) || null;
     }
 
+    calcLevelTimer(level: number, totalFlasks: number): number {
+        let t = totalFlasks === 1 ? 6 : totalFlasks === 2 ? 11 : 15;
+        const modifier = this.getFlaskModifier();
+        if (modifier && modifier.timeMult) {
+            t = Math.round(t * modifier.timeMult);
+        }
+        const isBoss = level >= 35 && level % 10 === 5;
+        if (isBoss) {
+            t = totalFlasks === 1 ? 4 : totalFlasks === 2 ? 7 : 10;
+        } else if (level >= 30) {
+            t += Phaser.Math.Between(-1, 1);
+        }
+        return Math.max(2, t);
+    }
+
     showLevelIntro(level: number) {
        Audio.playWhoosh();
       const w = this.scale.width;
@@ -4639,16 +4650,26 @@ export default class MainScene extends Phaser.Scene {
          fontStyle: 'bold'
      }).setOrigin(0.5);
      
-     const coinsLabel = this.add.text(w/2, h/2 - 15, `Session Earnings: $${this.levelCoinsEarnedInSession}`, {
-         fontSize: '24px',
-         color: '#1dd1a1',
-         fontStyle: 'bold',
-         fontFamily: 'monospace'
-     }).setOrigin(0.5);
-     
-     popup.add([lvlLabel, ordersLabel, coinsLabel]);
-     
-     // BUTTON 1: MULTIPLY AD REWARD! (Watch simulated ad for 3x Coins & refill undos)
+      const coinsLabel = this.add.text(w/2, h/2 - 15, `Session Earnings: $${this.levelCoinsEarnedInSession}`, {
+          fontSize: '24px',
+          color: '#1dd1a1',
+          fontStyle: 'bold',
+          fontFamily: 'monospace'
+      }).setOrigin(0.5);
+      
+      // Star rating
+      const starCount = this.levelTimerBase > 0
+        ? this.timeLeft >= this.levelTimerBase ? 3 : this.timeLeft >= Math.round(this.levelTimerBase * 0.5) ? 2 : 1
+        : 1;
+      const starStr = '★'.repeat(starCount) + '☆'.repeat(3 - starCount);
+      const starColor = starCount === 3 ? '#ffd700' : starCount === 2 ? '#c0c0c0' : '#cd7f32';
+      const starLabel = this.add.text(w/2, h/2 + 15, starStr, {
+          fontSize: '28px', color: starColor, fontFamily: 'sans-serif'
+      }).setOrigin(0.5);
+
+      popup.add([lvlLabel, ordersLabel, coinsLabel, starLabel]);
+      
+      // BUTTON 1: MULTIPLY AD REWARD! (Watch simulated ad for 3x Coins & refill undos)
      const adBtnCont = this.add.container(w/2, h/2 + 50);
      const adBtnBase = this.add.rectangle(0, 4, 280, 60, 0x10ac84).setStrokeStyle(4, 0x000);
      const adBtnBody = this.add.rectangle(0, 0, 280, 60, 0x1dd1a1).setStrokeStyle(4, 0x000);
@@ -4899,10 +4920,11 @@ export default class MainScene extends Phaser.Scene {
          this.totalFlasksInLevel = (dVal < 0.25) ? 1 : (dVal < 0.75) ? 2 : 3;
      }
      
-     this.timeLeft = this.totalFlasksInLevel === 1 ? 12 : this.totalFlasksInLevel === 2 ? 18 : 25;
-     if (this.timerText) {
-         this.timerText.setText(`⏱️ ${this.timeLeft}s`);
-     }
+      this.levelTimerBase = this.calcLevelTimer(this.level, this.totalFlasksInLevel);
+      this.timeLeft = this.levelTimerBase;
+      if (this.timerText) {
+          this.timerText.setText(`⏱️ ${this.timeLeft}s`);
+      }
      
      if (this.undoIndicatorText) {
          this.undoIndicatorText.setText(`${this.undosRemaining} LFT`);
