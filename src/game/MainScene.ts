@@ -4898,24 +4898,21 @@ export default class MainScene extends Phaser.Scene {
      this.levelCoinsEarnedInSession = 0;
      this.undosRemaining = 3; // Refilled
      
-     // Determine dynamic flasks sequence size for this level
-     // Randomly sets sequence sizes (1 to 3 blocks) for levels, keeping things diverse!
-     if (this.level <= 1) {
-         this.totalFlasksInLevel = 1;
-     } else if (this.level <= 4) {
-         // 40% probability for 2 flasks
-         this.totalFlasksInLevel = (Math.random() < 0.6) ? 1 : 2;
-     } else {
-         // 25% single, 50% double, 25% triple
-         const dVal = Math.random();
-         this.totalFlasksInLevel = (dVal < 0.25) ? 1 : (dVal < 0.75) ? 2 : 3;
-     }
-     
-      this.levelTimerBase = this.calcLevelTimer(this.level, this.totalFlasksInLevel);
-      this.timeLeft = this.levelTimerBase;
-      if (this.timerText) {
-          this.timerText.setText(`⏱️ ${this.timeLeft}s`);
+      // Determine dynamic flasks sequence size for this level
+      // Randomly sets sequence sizes (1 to 3 blocks) for levels, keeping things diverse!
+      if (this.level <= 1) {
+          this.totalFlasksInLevel = 1;
+      } else if (this.level <= 4) {
+          // 40% probability for 2 flasks
+          this.totalFlasksInLevel = (Math.random() < 0.6) ? 1 : 2;
+      } else {
+          // 25% single, 50% double, 25% triple
+          const dVal = Math.random();
+          this.totalFlasksInLevel = (dVal < 0.25) ? 1 : (dVal < 0.75) ? 2 : 3;
       }
+      
+      // Reset timer so spawnNextFlask recalculates it for the new level
+      this.levelTimerBase = 0;
      
      if (this.undoIndicatorText) {
          this.undoIndicatorText.setText(`${this.undosRemaining} LFT`);
