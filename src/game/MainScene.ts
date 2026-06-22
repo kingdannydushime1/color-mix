@@ -1050,11 +1050,11 @@ export default class MainScene extends Phaser.Scene {
 
     panel.add([titleTxt, msgTxt, circle, dropVisual]);
 
-    // BUY BUTTON: 5 Drops for $400
+    // BUY BUTTON: 3 Drops for $400
     const buyBtnCont = this.add.container(-60, 65);
     const buyBtnBase = this.add.rectangle(0, 3, 105, 34, 0x10ac84).setStrokeStyle(3, 0x000000);
     const buyBtnBody = this.add.rectangle(0, 0, 105, 34, 0x1dd1a1).setStrokeStyle(3, 0x000000);
-    const buyTxt = this.add.text(0, 0, 'BUY +5 ($400)', {
+    const buyTxt = this.add.text(0, 0, 'BUY +3 ($400)', {
       fontSize: '11px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -1100,7 +1100,7 @@ export default class MainScene extends Phaser.Scene {
       
       if (this.coins >= 400) {
         this.coins -= 400;
-        this.dropletStocks[type] = (this.dropletStocks[type] || 0) + 5;
+        this.dropletStocks[type] = (this.dropletStocks[type] || 0) + 3;
         this.updateScoreHUD();
         this.updateTapStockLabel(type);
         this.generatePanelButtons(); // redraw panel buttons representing stock dots!
@@ -1151,10 +1151,10 @@ export default class MainScene extends Phaser.Scene {
 
   triggerSimulatedDropsAd(type: string) {
        const label = type === 'r' ? 'RED' : type === 'b' ? 'BLUE' : 'YELLOW';
-       this.showCrazyRewardedAd(`REFILL ${label}`, 3, () => {
-           this.isValidating = false;
-           this.dropletStocks[type] = (this.dropletStocks[type] || 0) + 5;
-           this.updateTapStockLabel(type);
+        this.showCrazyRewardedAd(`REFILL ${label}`, 3, () => {
+            this.isValidating = false;
+            this.dropletStocks[type] = (this.dropletStocks[type] || 0) + 3;
+            this.updateTapStockLabel(type);
            this.generatePanelButtons();
            this.saveGameState();
            Audio.playWin();
@@ -1398,7 +1398,7 @@ export default class MainScene extends Phaser.Scene {
             // Double check pocket funds
             if (this.coins >= item.price) {
               this.coins -= item.price;
-              this.dropletStocks[item.colorId] = (this.dropletStocks[item.colorId] || 0) + 5;
+              this.dropletStocks[item.colorId] = (this.dropletStocks[item.colorId] || 0) + 3;
               
               Audio.playCashRegister();
               this.updateScoreHUD();
@@ -1406,7 +1406,7 @@ export default class MainScene extends Phaser.Scene {
               this.saveGameState();
               
               // Text boost popup
-              const upT = this.add.text(cellX, cellY, '+5 DROPS!', {
+              const upT = this.add.text(cellX, cellY, '+3 DROPS!', {
                 fontSize: '11px',
                 color: '#2ed573',
                 fontStyle: 'bold',
@@ -4230,14 +4230,14 @@ export default class MainScene extends Phaser.Scene {
     }
 
     calcLevelTimer(level: number, totalFlasks: number): number {
-        let t = totalFlasks === 1 ? 6 : totalFlasks === 2 ? 11 : 15;
+        let t = totalFlasks === 1 ? 10 : totalFlasks === 2 ? 18 : 27;
         const modifier = this.getFlaskModifier();
         if (modifier && modifier.timeMult) {
             t = Math.round(t * modifier.timeMult);
         }
         const isBoss = level >= 35 && level % 10 === 5;
         if (isBoss) {
-            t = totalFlasks === 1 ? 4 : totalFlasks === 2 ? 7 : 10;
+            t = totalFlasks === 1 ? 7 : totalFlasks === 2 ? 12 : 18;
         } else if (level >= 30) {
             t += Phaser.Math.Between(-1, 1);
         }
