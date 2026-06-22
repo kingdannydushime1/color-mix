@@ -32,10 +32,13 @@ export default function App() {
 
       try {
         if (typeof (window as any).CrazyGames !== 'undefined') {
-          await (window as any).CrazyGames.SDK.init();
+          await Promise.race([
+            (window as any).CrazyGames.SDK.init(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+          ]);
         }
       } catch (e) {
-        // SDK not available or init failed
+        // SDK not available, init failed, or timeout
       }
 
       const parentContainer = document.getElementById('phaser-container');
