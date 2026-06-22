@@ -3583,40 +3583,41 @@ export default class MainScene extends Phaser.Scene {
          fontFamily: 'monospace'
      }).setOrigin(0.5);
 
-     // Progress bar behind text
-     const progressBarBg = this.add.rectangle(0, 115, 200, 16, 0x1e272c).setStrokeStyle(1.5, 0x51636d);
-     const progressBarFill = this.add.rectangle(-100, 115, 0, 16, 0x2ecc71).setOrigin(0, 0.5);
-     
-     adContainer.add([sponsorText, gameText, adSloganText, loadingText, timerCountdownText, progressBarBg, progressBarFill]);
+      // Progress bar behind text
+      const progressBarBg = this.add.rectangle(0, 115, 200, 16, 0x1e272c).setStrokeStyle(1.5, 0x51636d);
+      const progressBarFill = this.add.rectangle(-100, 115, 0, 16, 0x2ecc71).setOrigin(0, 0.5);
+      
+      adContainer.add([sponsorText, gameText, adSloganText, loadingText, timerCountdownText, progressBarBg, progressBarFill]);
 
-     let durationLeft = durationSeconds; 
-     
-     const intervalTimer = this.time.addEvent({
-         delay: 1000,
-         repeat: durationSeconds - 1,
-         callback: () => {
-             durationLeft--;
-             if (durationLeft > 0) {
-                 timerCountdownText.setText(`REWARD UNLOCKS IN ${durationLeft}s`);
-                 Audio.playCoinChime();
-             } else {
-                 timerCountdownText.setText("REWARD UNLOCKED! 🎁");
-                 timerCountdownText.setColor("#2ecc71");
-             }
-         }
-     });
-
-     this.tweens.add({
-         targets: progressBarFill,
-         width: 200,
-         duration: durationSeconds * 1000,
-         ease: 'Linear',
-      onComplete: () => {
-               Audio.playCashRegister();
-               adContainer.destroy();
-               this.isAdRunning = false;
-               Audio.resumeBgMusic();
-               onCompleteCallback();
+      let durationLeft = durationSeconds; 
+      const startTime = this.time.now;
+      
+      const intervalTimer = this.time.addEvent({
+          delay: 100,
+          repeat: durationSeconds * 10 - 1,
+          callback: () => {
+              const elapsed = this.time.now - startTime;
+              const progress = Math.min(1, elapsed / (durationSeconds * 1000));
+              progressBarFill.width = 200 * progress;
+              const newSec = Math.ceil(durationSeconds - progress * durationSeconds);
+              if (newSec !== durationLeft) {
+                  durationLeft = newSec;
+                  if (durationLeft > 0) {
+                      timerCountdownText.setText(`REWARD UNLOCKS IN ${durationLeft}s`);
+                      Audio.playCoinChime();
+                  } else {
+                      timerCountdownText.setText("REWARD UNLOCKED! 🎁");
+                      timerCountdownText.setColor("#2ecc71");
+                  }
+              }
+              if (progress >= 1) {
+                  intervalTimer.remove();
+                  Audio.playCashRegister();
+                  adContainer.destroy();
+                  this.isAdRunning = false;
+                  Audio.resumeBgMusic();
+                  onCompleteCallback();
+              }
           }
       });
    }
