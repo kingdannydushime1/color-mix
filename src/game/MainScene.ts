@@ -3590,17 +3590,17 @@ export default class MainScene extends Phaser.Scene {
       adContainer.add([sponsorText, gameText, adSloganText, loadingText, timerCountdownText, progressBarBg, progressBarFill]);
 
       let durationLeft = durationSeconds; 
-      const startTime = this.time.now;
+      let ticksLeft = Math.round((durationSeconds * 1000) / 100);
       
-      const intervalTimer = this.time.addEvent({
+      const progressTimer = this.time.addEvent({
           delay: 100,
-          repeat: durationSeconds * 10 - 1,
+          repeat: ticksLeft - 1,
           callback: () => {
-              const elapsed = this.time.now - startTime;
-              const progress = Math.min(1, elapsed / (durationSeconds * 1000));
+              ticksLeft--;
+              const progress = Math.min(1, 1 - ticksLeft / (durationSeconds * 10));
               progressBarFill.width = 200 * progress;
               const newSec = Math.ceil(durationSeconds - progress * durationSeconds);
-              if (newSec !== durationLeft) {
+              if (newSec !== durationLeft && newSec >= 0) {
                   durationLeft = newSec;
                   if (durationLeft > 0) {
                       timerCountdownText.setText(`REWARD UNLOCKS IN ${durationLeft}s`);
@@ -3610,8 +3610,7 @@ export default class MainScene extends Phaser.Scene {
                       timerCountdownText.setColor("#2ecc71");
                   }
               }
-              if (progress >= 1) {
-                  intervalTimer.remove();
+              if (ticksLeft <= 0) {
                   Audio.playCashRegister();
                   adContainer.destroy();
                   this.isAdRunning = false;
