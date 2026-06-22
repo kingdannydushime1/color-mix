@@ -596,35 +596,37 @@ export default class MainScene extends Phaser.Scene {
       loop: true,
       callback: () => {
          if (!this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && this.currentFlask && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen) {
-            if (this.timeLeft > 0) {
-               this.timeLeft--;
-               this.timerText.setText(`⏱️ ${this.timeLeft}s`);
-               this.updateHealthBar();
+             if (this.timeLeft > 0) {
+                this.timeLeft--;
+                this.timerText.setText(`⏱️ ${this.timeLeft}s`);
+                this.updateHealthBar();
 
-               if (this.timeLeft <= 10 && this.timeLeft > 0) {
-                  this.timerText.setColor(this.timeLeft <= 5 ? '#ff4757' : '#ffa502');
-                  if (this.timeLeft <= 5) {
-                     this.tweens.add({
-                        targets: this.timerText,
-                        scale: 1.25,
-                        duration: 100,
-                        yoyo: true,
-                        ease: 'Quad.easeOut'
-                     });
-                  }
-               }
+                if (this.timeLeft <= 10 && this.timeLeft > 0) {
+                   this.timerText.setColor(this.timeLeft <= 5 ? '#ff4757' : '#ffa502');
+                   if (this.timeLeft <= 5) {
+                      this.tweens.add({
+                         targets: this.timerText,
+                         scale: 1.25,
+                         duration: 100,
+                         yoyo: true,
+                         ease: 'Quad.easeOut'
+                      });
+                   }
+                }
 
-               if (this.timeLeft <= 5 && this.timeLeft > 0) {
-                  Audio.playBuzzer();
-                  this.cameras.main.flash(180, 255, 100, 100, false);
-               }
+                if (this.timeLeft <= 5 && this.timeLeft > 0) {
+                   Audio.playBuzzer();
+                   this.cameras.main.flash(180, 255, 100, 100, false);
+                }
 
-               if (this.timeLeft <= 0) {
-                  this.gameOver();
-               }
-            } else {
-               this.gameOver();
-            }
+                if (this.timeLeft <= 0) {
+                   // Revert text so 0s is never shown
+                   this.timerText.setText(`⏱️ 1s`);
+                   this.gameOver();
+                }
+             } else {
+                this.gameOver();
+             }
          }
       }
     });
