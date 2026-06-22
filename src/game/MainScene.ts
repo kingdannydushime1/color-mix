@@ -155,6 +155,7 @@ export default class MainScene extends Phaser.Scene {
   private themePage = 0;
   private isShopOpen = false;
   private isHintOpen = false;
+  private isTutorialOpen = false;
   private activeShopTapIndex = 0;
   private shopLayer: Phaser.GameObjects.Container | null = null;
   private hintLayer: Phaser.GameObjects.Container | null = null;
@@ -595,7 +596,7 @@ export default class MainScene extends Phaser.Scene {
       delay: 1000,
       loop: true,
       callback: () => {
-         if (!this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && this.currentFlask && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen) {
+          if (!this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && this.currentFlask && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isTutorialOpen) {
              if (this.timeLeft > 0) {
                 this.timeLeft--;
                 this.timerText.setText(`⏱️ ${this.timeLeft}s`);
@@ -646,6 +647,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   showTutorial() {
+    this.isTutorialOpen = true;
     localStorage.setItem('tutorial_shown_v2', '1');
     const w = this.scale.width;
     const h = this.scale.height;
@@ -702,6 +704,7 @@ export default class MainScene extends Phaser.Scene {
     const advanceStep = () => {
       step++;
       if (step >= steps.length) {
+        this.isTutorialOpen = false;
         this.tweens.add({ targets: tutorialCont, alpha: 0, scale: 0.9, duration: 200, onComplete: () => tutorialCont.destroy() });
         return;
       }
