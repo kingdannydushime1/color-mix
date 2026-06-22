@@ -433,15 +433,17 @@ export default class MainScene extends Phaser.Scene {
     this.currentTargetColor = 0xffffff;
      this.victoryPopupContainer = null;
      this.isValidating = false;
+     this.levelTimerBase = 0;
+     this.currentChallengeModifier = null;
+     this.isLevelSuccessPopupOpen = false;
      
      this.dropletStocks = { r: 3, b: 3, y: 3 };
     this.activePanelElements = [];
     this.completedCount = 0;
     this.stackedBoxes = [];
     this.undosRemaining = 3;
-    this.completedFlasksInLevel = 0;
-    this.isLevelSuccessPopupOpen = false;
-    this.levelCoinsEarnedInSession = 0;
+     this.completedFlasksInLevel = 0;
+     this.levelCoinsEarnedInSession = 0;
     this.activeConfettiGroup = this.add.group();
 
     // Default faucet configurations
