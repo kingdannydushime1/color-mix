@@ -3604,45 +3604,52 @@ export default class MainScene extends Phaser.Scene {
          fontFamily: 'monospace'
      }).setOrigin(0.5);
 
-      // Progress bar behind text
+       // Progress bar behind text
       const progressBarBg = this.add.rectangle(0, 115, 200, 16, 0x1e272c).setStrokeStyle(1.5, 0x51636d);
       const progressBarFill = this.add.rectangle(-100, 115, 0, 16, 0x2ecc71).setOrigin(0, 0.5);
       
       adContainer.add([sponsorText, gameText, adSloganText, loadingText, timerCountdownText, progressBarBg, progressBarFill]);
 
-      const adStartTime = this.time.now;
+      const adStartTime = Date.now();
       let lastDisplayedSec = durationSeconds;
+      let completed = false;
 
-      // UI update timer (non-critical — ad always completes via delayedCall)
-      this.time.addEvent({
-          delay: 100,
-          repeat: Math.round(durationSeconds * 10) - 1,
-          callback: () => {
-              const elapsed = this.time.now - adStartTime;
-              const progress = Math.min(1, elapsed / (durationSeconds * 1000));
-              progressBarFill.width = 200 * progress;
-              const remainingSec = Math.ceil(durationSeconds - progress * durationSeconds);
-              if (remainingSec !== lastDisplayedSec && remainingSec >= 0) {
-                  lastDisplayedSec = remainingSec;
-                  if (remainingSec > 0) {
-                      timerCountdownText.setText(`REWARD UNLOCKS IN ${remainingSec}s`);
-                      Audio.playCoinChime();
-                  } else {
-                      timerCountdownText.setText("REWARD UNLOCKED! 🎁");
-                      timerCountdownText.setColor("#2ecc71");
-                  }
-              }
-          }
-      });
-
-      // Completion handler (single delayedCall — always fires)
-      this.time.delayedCall(durationSeconds * 1000, () => {
+      const finishAd = () => {
+          if (completed) return;
+          completed = true;
           Audio.playCashRegister();
           adContainer.destroy();
           this.isAdRunning = false;
           Audio.resumeBgMusic();
           onCompleteCallback();
+      };
+
+      // UI update timer
+      this.time.addEvent({
+          delay: 100,
+          repeat: Math.round(durationSeconds * 10) - 1,
+          callback: () => {
+              if (completed) return;
+              const elapsed = Date.now() - adStartTime;
+              const progress = Math.min(1, elapsed / (durationSeconds * 1000));
+              if (progressBarFill.active) progressBarFill.width = 200 * progress;
+              if (progress >= 1) { finishAd(); return; }
+              const remainingSec = Math.ceil(durationSeconds - progress * durationSeconds);
+              if (remainingSec !== lastDisplayedSec && remainingSec >= 0) {
+                  lastDisplayedSec = remainingSec;
+                  if (remainingSec > 0) {
+                      if (timerCountdownText.active) timerCountdownText.setText(`REWARD UNLOCKS IN ${remainingSec}s`);
+                      Audio.playCoinChime();
+                  } else {
+                      if (timerCountdownText.active) { timerCountdownText.setText("REWARD UNLOCKED! 🎁"); timerCountdownText.setColor("#2ecc71"); }
+                  }
+              }
+          }
       });
+
+      // Completion safeties (multiple layers to avoid blocking)
+      this.time.delayedCall(durationSeconds * 1000, finishAd);
+      setTimeout(finishAd, (durationSeconds * 1000) + 500);
    }
 
     showCrazyRewardedAd(adTitle: string, durationSeconds: number, onCompleteCallback: () => void) {
