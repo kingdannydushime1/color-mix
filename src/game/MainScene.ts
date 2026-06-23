@@ -4298,7 +4298,7 @@ export default class MainScene extends Phaser.Scene {
                 t = Math.round(t * 0.92);
             }
             if (cLosses >= 2) {
-                t = Math.round(t * (1.20 + (cLosses - 2) * 0.05));
+                t = Math.round(t * 2);
             }
             if (level >= 30) {
                 t += Phaser.Math.Between(-1, 1);
