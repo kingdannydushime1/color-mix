@@ -160,6 +160,10 @@ export default class MainScene extends Phaser.Scene {
   private shopLayer: Phaser.GameObjects.Container | null = null;
   private hintLayer: Phaser.GameObjects.Container | null = null;
   private isAdRunning = false;
+  private wasRevivedThisLevel = false;
+  private static levelResults: { won: boolean; timeLeftPct: number }[] = [];
+  private static consecutiveWins = 0;
+  private static consecutiveLosses = 0;
   private currentTargetColor = 0xffffff;
   private ownedColors: { [key: string]: boolean } = {
     r: true,
@@ -438,9 +442,10 @@ export default class MainScene extends Phaser.Scene {
      this.isValidating = false;
      this.levelTimerBase = 0;
      this.currentChallengeModifier = null;
-     this.isLevelSuccessPopupOpen = false;
-     
-     this.dropletStocks = { r: 3, b: 3, y: 3 };
+      this.isLevelSuccessPopupOpen = false;
+      this.wasRevivedThisLevel = false;
+      
+      this.dropletStocks = { r: 3, b: 3, y: 3 };
     this.activePanelElements = [];
     this.completedCount = 0;
     this.stackedBoxes = [];
@@ -3445,8 +3450,15 @@ export default class MainScene extends Phaser.Scene {
                                             flask.destroy();
                                             this.currentFlask = null;
 
-                                            if (this.completedFlasksInLevel >= this.totalFlasksInLevel) {
-                                                this.completeLevelSuccessFlow();
+                                             if (this.completedFlasksInLevel >= this.totalFlasksInLevel) {
+                                                 if (!this.wasRevivedThisLevel) {
+                                                     const pct = this.levelTimerBase > 0 ? this.timeLeft / this.levelTimerBase : 0;
+                                                     MainScene.levelResults.push({ won: true, timeLeftPct: pct });
+                                                     if (MainScene.levelResults.length > 5) MainScene.levelResults.shift();
+                                                     MainScene.consecutiveWins++;
+                                                     MainScene.consecutiveLosses = 0;
+                                                 }
+                                                 this.completeLevelSuccessFlow();
                                             } else {
                                                 if (this.timeLeft > 0) {
                                                     this.isValidating = false;
@@ -4037,6 +4049,7 @@ export default class MainScene extends Phaser.Scene {
          reviveT1.y = -5;
          reviveT2.y = 15;
          
+         this.wasRevivedThisLevel = true;
          goCont.destroy();
          this.triggerSimulatedGameOverAd();
       });
@@ -4066,6 +4079,10 @@ export default class MainScene extends Phaser.Scene {
       restartHit.on('pointerdown', () => {
          restartBody.y = 4;
          restartText.y = 4;
+         MainScene.levelResults.push({ won: false, timeLeftPct: 0 });
+         if (MainScene.levelResults.length > 5) MainScene.levelResults.shift();
+         MainScene.consecutiveLosses++;
+         MainScene.consecutiveWins = 0;
          this.scene.restart();
       });
       restartHit.on('pointerup', () => {
@@ -4249,10 +4266,38 @@ export default class MainScene extends Phaser.Scene {
         const isBoss = level >= 35 && level % 10 === 5;
         if (isBoss) {
             t = totalFlasks === 1 ? 7 : totalFlasks === 2 ? 12 : 18;
-        } else if (level >= 30) {
-            t += Phaser.Math.Between(-1, 1);
+        } else {
+            // Initiation: levels 1-5 get more time
+            if (level <= 5) {
+                const multipliers = [3.0, 2.5, 2.0, 1.6, 1.3];
+                t = Math.round(t * multipliers[level - 1]);
+            }
+            // Adaptive adjustments based on recent performance
+            const results = MainScene.levelResults;
+            const cWins = MainScene.consecutiveWins;
+            const cLosses = MainScene.consecutiveLosses;
+            if (results.length >= 3) {
+                const wonResults = results.filter(r => r.won);
+                if (wonResults.length > 0) {
+                    const avgLeft = wonResults.reduce((s, r) => s + r.timeLeftPct, 0) / wonResults.length;
+                    if (avgLeft > 0.40) {
+                        t = Math.round(t * 0.85); // too easy, tighten
+                    } else if (avgLeft < 0.05 && cLosses === 0) {
+                        t = Math.round(t * 1.15); // too hard, loosen
+                    }
+                }
+            }
+            if (cWins >= 4) {
+                t = Math.round(t * 0.92);
+            }
+            if (cLosses >= 2) {
+                t = Math.round(t * (1.20 + (cLosses - 2) * 0.05));
+            }
+            if (level >= 30) {
+                t += Phaser.Math.Between(-1, 1);
+            }
         }
-        return Math.max(2, t);
+        return Phaser.Math.Clamp(t, 4, 45);
     }
 
     showLevelIntro(level: number) {
