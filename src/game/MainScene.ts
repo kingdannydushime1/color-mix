@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Colors, Dose } from './Colors';
 import * as Audio from './audio';
+import * as GD from './gd';
 
 interface ShopItem {
   id: string;
@@ -475,6 +476,7 @@ export default class MainScene extends Phaser.Scene {
     this.checkDailyReward();
 
     this.input.on('pointerdown', () => {
+      GD.initListeners();
       Audio.startBgMusic();
       Audio.initAudio();
     });
@@ -1163,7 +1165,7 @@ export default class MainScene extends Phaser.Scene {
 
   triggerSimulatedDropsAd(type: string) {
        const label = type === 'r' ? 'RED' : type === 'b' ? 'BLUE' : 'YELLOW';
-        this.showCrazyRewardedAd(`REFILL ${label}`, 3, () => {
+        this.showGDRewardedAd(`REFILL ${label}`, 3, () => {
             this.isValidating = false;
             this.dropletStocks[type] = (this.dropletStocks[type] || 0) + 3;
             this.updateTapStockLabel(type);
@@ -2155,7 +2157,7 @@ export default class MainScene extends Phaser.Scene {
      const adHit = this.add.rectangle(0, 0, 100, 36).setInteractive({ useHandCursor: true });
       adHit.on('pointerdown', () => { adBody.y = 3; adTxt.y = 3; });
       adHit.on('pointerup', () => {
-          this.showCrazyRewardedAd("REVEAL RECIPE", 3, () => {
+          this.showGDRewardedAd("REVEAL RECIPE", 3, () => {
               popup.destroy();
               this.openRecipeHintPopup();
           });
@@ -3652,43 +3654,26 @@ export default class MainScene extends Phaser.Scene {
       setTimeout(finishAd, (durationSeconds * 1000) + 500);
    }
 
-    showCrazyRewardedAd(adTitle: string, durationSeconds: number, onCompleteCallback: () => void) {
-       if (this.isAdRunning) return;
+     showGDRewardedAd(adTitle: string, durationSeconds: number, onCompleteCallback: () => void) {
+        if (this.isAdRunning) return;
 
-       const isCrazyEnv = window.location.hostname === 'localhost' ||
-                          window.location.hostname === 'crazygames.com' ||
-                          window.location.hostname.endsWith('.crazygames.com');
-       const sdk = (window as any).CrazyGames?.SDK;
-
-       if (!isCrazyEnv || !sdk) {
-          this.showSimulatedVideoAd(adTitle, durationSeconds, onCompleteCallback);
-          return;
-       }
-
-       this.isAdRunning = true;
-       Audio.pauseBgMusic();
-
-       sdk.ad.requestAd("rewarded")
-          .then(() => {
-             this.isAdRunning = false;
-             Audio.resumeBgMusic();
-             onCompleteCallback();
-          })
-          .catch((error: any) => {
-              console.warn("CrazyGames rewarded ad failed:", error);
+        if (GD.isAvailable()) {
+           this.isAdRunning = true;
+           Audio.pauseBgMusic();
+           GD.showRewardedAd().then((rewarded) => {
               this.isAdRunning = false;
-              this.showSimulatedVideoAd(adTitle, durationSeconds, onCompleteCallback);
-            });
-    }
+              Audio.resumeBgMusic();
+              if (rewarded) {
+                 onCompleteCallback();
+              }
+           });
+        } else {
+           this.showSimulatedVideoAd(adTitle, durationSeconds, onCompleteCallback);
+        }
+     }
 
    saveHighScore() {
-      const sdk = (window as any).CrazyGames?.SDK;
-      const canUseCrazy = sdk && (sdk.environment === 'local' || sdk.environment === 'crazygames');
-      if (canUseCrazy && sdk.leaderboard) {
-         sdk.leaderboard.setScore({ score: this.coins, data: JSON.stringify({ level: this.level }) })
-            .then(() => {})
-            .catch(() => {});
-      }
+      // GD SDK does not provide leaderboard API
    }
 
    showLeaderboardPopup() {
@@ -3711,47 +3696,20 @@ export default class MainScene extends Phaser.Scene {
 
       const title = this.add.text(0, -115, '🏆 LEADERBOARD 🏆', { fontSize: '16px', color: '#ffd700', fontStyle: 'bold', fontFamily: 'monospace', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
 
-      const sdk = (window as any).CrazyGames?.SDK;
-      const canUseCrazy = sdk && (sdk.environment === 'local' || sdk.environment === 'crazygames');
       let yOff = -75;
 
-      if (canUseCrazy && sdk.leaderboard) {
-         const listCont = this.add.container(0, 0);
-         const loadingText = this.add.text(0, yOff, 'Loading...', { fontSize: '12px', color: '#a4b0be', fontFamily: 'monospace' }).setOrigin(0.5);
-         listCont.add(loadingText);
-
-         sdk.leaderboard.getScores()
-            .then((entries: any[]) => {
-               listCont.removeAll(true);
-               entries.slice(0, 20).forEach((entry, i) => {
-                  const rank = entry.rank ?? (i + 1);
-                  const name = entry.playerName || `Player${rank}`;
-                  const score = entry.score ?? 0;
-                  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
-                  const row = this.add.text(0, yOff + i * 18, `${medal} ${name.padEnd(16, ' ')} $${score}`, { fontSize: '10px', color: rank <= 3 ? '#ffd700' : '#ced6e0', fontFamily: 'monospace' }).setOrigin(0.5);
-                  listCont.add(row);
-               });
-            })
-            .catch(() => {
-               listCont.removeAll(true);
-               const err = this.add.text(0, yOff, 'Leaderboard unavailable', { fontSize: '12px', color: '#ff4757', fontFamily: 'monospace' }).setOrigin(0.5);
-               listCont.add(err);
-            });
-         popup.add(listCont);
-      } else {
-         const mockEntries = [
-            { rank: 1, name: '🧪 Alchemist', score: 9999 },
-            { rank: 2, name: '🔥 ChemMaster', score: 7500 },
-            { rank: 3, name: '💧 PotionPro', score: 5200 },
-            { rank: 4, name: '— You —', score: this.coins },
-            { rank: 5, name: '🌟 MixWizard', score: 3100 },
-         ];
-         mockEntries.forEach((entry, i) => {
-            const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `${entry.rank}.`;
-            const row = this.add.text(0, yOff + i * 22, `${medal} ${entry.name.padEnd(16, ' ')} $${entry.score}`, { fontSize: '11px', color: entry.rank === 4 ? '#00f3ff' : entry.rank <= 3 ? '#ffd700' : '#ced6e0', fontFamily: 'monospace', fontStyle: entry.rank === 4 ? 'bold' : 'normal' }).setOrigin(0.5);
-            popup.add(row);
-         });
-      }
+      const mockEntries = [
+         { rank: 1, name: '🧪 Alchemist', score: 9999 },
+         { rank: 2, name: '🔥 ChemMaster', score: 7500 },
+         { rank: 3, name: '💧 PotionPro', score: 5200 },
+         { rank: 4, name: '— You —', score: this.coins },
+         { rank: 5, name: '🌟 MixWizard', score: 3100 },
+      ];
+      mockEntries.forEach((entry, i) => {
+         const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `${entry.rank}.`;
+         const row = this.add.text(0, yOff + i * 22, `${medal} ${entry.name.padEnd(16, ' ')} $${entry.score}`, { fontSize: '11px', color: entry.rank === 4 ? '#00f3ff' : entry.rank <= 3 ? '#ffd700' : '#ced6e0', fontFamily: 'monospace', fontStyle: entry.rank === 4 ? 'bold' : 'normal' }).setOrigin(0.5);
+         popup.add(row);
+      });
 
       const closeCont = this.add.container(0, 120);
       const closeBase = this.add.rectangle(0, 3, 120, 34, 0x8c1c24).setStrokeStyle(3, 0x000);
@@ -3886,7 +3844,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   showVideoAdForUndos() {
-     this.showCrazyRewardedAd("REFRESH UNDOS", 3, () => {
+     this.showGDRewardedAd("REFRESH UNDOS", 3, () => {
          this.undosRemaining = 3;
          if (this.undoIndicatorText) {
               this.undoIndicatorText.setText(`${this.undosRemaining}`);
@@ -4115,7 +4073,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   triggerSimulatedGameOverAd() {
-      this.showCrazyRewardedAd("EMERGENCY REVIVE", 3, () => {
+      this.showGDRewardedAd("EMERGENCY REVIVE", 3, () => {
           this.isValidating = false;
           
           // Revive reward!
@@ -4921,7 +4879,7 @@ export default class MainScene extends Phaser.Scene {
    }
 
    triggerSimulatedCommercialAd() {
-      this.showCrazyRewardedAd("CLAIM EXTRA COINS", 3, () => {
+      this.showGDRewardedAd("CLAIM EXTRA COINS", 3, () => {
           this.startNextLevel(true);
       });
    }
@@ -4993,10 +4951,22 @@ export default class MainScene extends Phaser.Scene {
      
      this.activeConfettiGroup.clear(true, true);
      
-     this.saveGameState(); // Auto-save game state before releasing the block!
-     
-     // Release scanner blocks
-     this.isValidating = false;
-     this.spawnNextFlask();
-  }
+      this.saveGameState(); // Auto-save game state before releasing the block!
+      
+      // Release scanner blocks
+      this.isValidating = false;
+      
+      // Mid-roll every 5 levels: check the level that was just completed
+      if ((this.level - 1) % 5 === 0 && this.level > 1 && GD.isAvailable()) {
+         this.isAdRunning = true;
+         Audio.pauseBgMusic();
+         GD.showMidrollAd().then(() => {
+            Audio.resumeBgMusic();
+            this.isAdRunning = false;
+            this.spawnNextFlask();
+         });
+      } else {
+         this.spawnNextFlask();
+      }
+   }
 }

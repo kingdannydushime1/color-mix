@@ -28,17 +28,6 @@ export default function App() {
         backgroundColor: '#0a0a0f'
       };
 
-      try {
-        if (typeof (window as any).CrazyGames !== 'undefined') {
-          await Promise.race([
-            (window as any).CrazyGames.SDK.init(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-          ]);
-        }
-      } catch (e) {
-        // SDK not available, init failed, or timeout
-      }
-
       const parentContainer = document.getElementById('phaser-container');
       if (parentContainer) {
         parentContainer.innerHTML = '';
