@@ -133,14 +133,7 @@ export default class MainScene extends Phaser.Scene {
   private completedFlasksInLevel = 0;
   private isLevelSuccessPopupOpen = false;
   private levelCoinsEarnedInSession = 0;
-  private currentChallengeModifier: string | null = null;
-  private challengeModifiers = [
-    { id: 'speed', name: '⚡ SPEED', desc: 'Fast completion = 2x coins!', color: '#ffeb3b', rewardMult: 2, timeMult: 0.7, speedMult: 1.5 },
-    { id: 'precision', name: '🎯 PRECISION', desc: 'Must be >95% match!', color: '#ff6b81', rewardMult: 1.5, timeMult: 1.2, speedMult: 1 },
-    { id: 'bonus', name: '💰 BONUS', desc: '2x coins!', color: '#ffd700', rewardMult: 2, timeMult: 1, speedMult: 1 },
-  ];
   private levelTimerBase = 0;
-  private challengeModifierText: Phaser.GameObjects.Text | null = null;
   private activeConfettiGroup!: Phaser.GameObjects.Group;
   private undoIndicatorText!: Phaser.GameObjects.Text;
   private musicIcon!: Phaser.GameObjects.Text;
@@ -161,10 +154,9 @@ export default class MainScene extends Phaser.Scene {
   private shopLayer: Phaser.GameObjects.Container | null = null;
   private hintLayer: Phaser.GameObjects.Container | null = null;
   private isAdRunning = false;
+  private isWelcomeOpen = false;
   private wasRevivedThisLevel = false;
-  private static levelResults: { won: boolean; timeLeftPct: number }[] = [];
-  private static consecutiveWins = 0;
-  private static consecutiveLosses = 0;
+  private static highScore = 0;
   private currentTargetColor = 0xffffff;
   private ownedColors: { [key: string]: boolean } = {
     r: true,
@@ -441,9 +433,8 @@ export default class MainScene extends Phaser.Scene {
     this.currentTargetColor = 0xffffff;
      this.victoryPopupContainer = null;
      this.isValidating = false;
-     this.levelTimerBase = 0;
-     this.currentChallengeModifier = null;
-      this.isLevelSuccessPopupOpen = false;
+      this.levelTimerBase = 0;
+       this.isLevelSuccessPopupOpen = false;
       this.wasRevivedThisLevel = false;
       
       this.dropletStocks = { r: 3, b: 3, y: 3 };
@@ -614,7 +605,7 @@ export default class MainScene extends Phaser.Scene {
       delay: 1000,
       loop: true,
       callback: () => {
-          if (!this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && this.currentFlask && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isTutorialOpen) {
+          if (!this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && this.currentFlask && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isTutorialOpen && !this.isWelcomeOpen) {
              if (this.timeLeft > 0) {
                 this.timeLeft--;
                 this.timerText.setText(`⏱️ ${this.timeLeft}s`);
@@ -652,19 +643,79 @@ export default class MainScene extends Phaser.Scene {
 
     this.createPanel();
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
-      if (this.isShopOpen || this.isHintOpen || this.isAdRunning || this.isLevelSuccessPopupOpen || this.isValidating) return;
+      if (this.isShopOpen || this.isHintOpen || this.isAdRunning || this.isLevelSuccessPopupOpen || this.isValidating || this.isWelcomeOpen) return;
       if (event.key === '1' && this.tapData[0]) this.animateAndDispense(this.tapData[0]);
       else if (event.key === '2' && this.tapData[1]) this.animateAndDispense(this.tapData[1]);
       else if (event.key === '3' && this.tapData[2]) this.animateAndDispense(this.tapData[2]);
     });
-    this.spawnNextFlask();
-
-    if (!localStorage.getItem('tutorial_shown_v2')) {
-       this.time.delayedCall(800, () => this.showTutorial());
-    }
   }
 
-  showTutorial() {
+   showWelcomeScreen() {
+    this.isWelcomeOpen = true;
+    const w = this.scale.width;
+    const h = this.scale.height;
+
+    const overlay = this.add.container(w / 2, h / 2).setDepth(3000);
+
+    const bg = this.add.rectangle(0, 0, w, h, 0x0a0a2e).setDepth(3000);
+    const bgGlow = this.add.rectangle(0, 0, w, h, 0x1a1a4e, 0.3).setDepth(3001).setScale(0);
+    this.tweens.add({ targets: bgGlow, scale: 1.5, alpha: 0, duration: 2000, repeat: -1, ease: 'Sine.easeInOut' });
+
+    const title = this.add.text(0, -100, 'COLOR MIX', {
+      fontSize: '48px', color: '#ffd700', fontStyle: 'bold', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(3002);
+    this.tweens.add({ targets: title, scale: 1.03, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    const subtitle = this.add.text(0, -45, '⚗️  Mix.  Match.  Master.  ⚗️', {
+      fontSize: '14px', color: '#a4b0be', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(3002);
+
+    const progressBg = this.add.rectangle(0, 30, 260, 14, 0x1e272c, 0.8).setStrokeStyle(1, 0x57606f).setDepth(3002);
+    const progressFill = this.add.graphics().setDepth(3003);
+    const progressLabel = this.add.text(0, 54, 'LOADING...', {
+      fontSize: '10px', color: '#57606f', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(3002);
+
+    overlay.add([bg, bgGlow, title, subtitle, progressBg, progressFill, progressLabel]);
+
+    let pct = 0;
+    const loadTimer = this.time.addEvent({
+      delay: 40,
+      loop: true,
+      callback: () => {
+        pct += 2;
+        if (pct > 100) pct = 100;
+        progressFill.clear();
+        progressFill.fillStyle(0x00f3ff, 1);
+        progressFill.fillRoundedRect(-128, 24, (pct / 100) * 256, 10, 5);
+        if (pct >= 100) {
+          loadTimer.remove();
+          progressLabel.setText('TAP TO PLAY');
+          progressLabel.setColor('#00f3ff');
+          this.tweens.add({ targets: progressLabel, alpha: 0.4, duration: 500, yoyo: true, repeat: -1 });
+
+          const tapHit = this.add.rectangle(0, 0, w, h).setInteractive().setDepth(3004).setAlpha(0.01);
+          overlay.add(tapHit);
+            tapHit.on('pointerdown', () => {
+            this.isWelcomeOpen = false;
+            this.tweens.add({
+              targets: overlay, alpha: 0, scale: 1.1, duration: 400, ease: 'Cubic.easeIn',
+              onComplete: () => {
+                overlay.destroy();
+                this.spawnNextFlask();
+                if (!localStorage.getItem('tutorial_shown_v2')) {
+                  this.time.delayedCall(800, () => this.showTutorial());
+                }
+              },
+            });
+          });
+        }
+      },
+    });
+  }
+
+   showTutorial() {
     this.isTutorialOpen = true;
     localStorage.setItem('tutorial_shown_v2', '1');
     const w = this.scale.width;
@@ -2798,16 +2849,10 @@ export default class MainScene extends Phaser.Scene {
   }
 
     spawnNextFlask() {
-     if (this.completedFlasksInLevel === 0) {
-        this.showLevelIntro(this.level);
-     }
-     // Assign challenge modifier on levels 3+ (25% chance)
-     if (this.level >= 3 && Math.random() < 0.25) {
-       this.currentChallengeModifier = this.challengeModifiers[Phaser.Math.Between(0, this.challengeModifiers.length - 1)].id;
-     } else {
-       this.currentChallengeModifier = null;
-     }
-     const target = Colors.generateTarget(this.level * 10 + this.completedFlasksInLevel);
+      if (this.completedFlasksInLevel === 0) {
+         this.showLevelIntro(this.level);
+      }
+      const target = Colors.generateTarget(this.level * 10 + this.completedFlasksInLevel);
      const x = -100;
     const y = this.beltY - 45; 
 
@@ -2832,18 +2877,7 @@ export default class MainScene extends Phaser.Scene {
     // Progress Text
     const progressTxt = this.add.text(0, -65, '0%', { fontSize: '20px', color: '#2f3542', fontStyle: 'bold', stroke: '#fff', strokeThickness: 4 }).setOrigin(0.5);
 
-    // Challenge modifier badge
-    let modBadge: Phaser.GameObjects.Container | null = null;
-    const badgeFlaskMod = this.getFlaskModifier();
-    if (badgeFlaskMod) {
-      modBadge = this.add.container(0, -85);
-      const badgeBg = this.add.rectangle(0, 0, 80, 16, 0x000000, 0.6).setStrokeStyle(1, parseInt(badgeFlaskMod.color.replace('#', '0x')));
-      const badgeTxt = this.add.text(0, 0, badgeFlaskMod.name, { fontSize: '9px', color: badgeFlaskMod.color, fontStyle: 'bold', fontFamily: 'monospace' }).setOrigin(0.5);
-      modBadge.add([badgeBg, badgeTxt]);
-    }
-
     flask.add([bg, outline, progressBarBg, progressBarFill, progressTxt]);
-    if (modBadge) flask.add(modBadge);
 
     (flask as any).bg = bg;
     (flask as any).outlineGraphics = outline;
@@ -2902,8 +2936,6 @@ export default class MainScene extends Phaser.Scene {
     } else if (tColor === 0x664422) {
         reward = 150;
     }
-    const flaskMod = this.getFlaskModifier();
-    if (flaskMod) reward = Math.round(reward * flaskMod.rewardMult);
     this.pendingRewardCoins = reward;
     this.targetCoinsText.setText(`$+${reward}`);
 
@@ -3461,19 +3493,14 @@ export default class MainScene extends Phaser.Scene {
                                             flask.destroy();
                                             this.currentFlask = null;
 
-                                             if (this.completedFlasksInLevel >= this.totalFlasksInLevel) {
-                                                 if (!this.wasRevivedThisLevel) {
-                                                     const pct = this.levelTimerBase > 0 ? this.timeLeft / this.levelTimerBase : 0;
-                                                     MainScene.levelResults.push({ won: true, timeLeftPct: pct });
-                                                     if (MainScene.levelResults.length > 5) MainScene.levelResults.shift();
-                                                     MainScene.consecutiveWins++;
-                                                     MainScene.consecutiveLosses = 0;
-                                                 }
-                                                 this.completeLevelSuccessFlow();
+                                              if (this.completedFlasksInLevel >= this.totalFlasksInLevel) {
+                                                  if (!this.wasRevivedThisLevel) {
+                                                  }
+                                                  this.completeLevelSuccessFlow();
                                             } else {
                                                 if (this.timeLeft > 0) {
                                                     this.isValidating = false;
-                                                    this.spawnNextFlask();
+    this.showWelcomeScreen();
                                                 }
                                             }
                                         }
@@ -4053,11 +4080,7 @@ export default class MainScene extends Phaser.Scene {
       restartHit.on('pointerdown', () => {
          restartBody.y = 4;
          restartText.y = 4;
-         MainScene.levelResults.push({ won: false, timeLeftPct: 0 });
-         if (MainScene.levelResults.length > 5) MainScene.levelResults.shift();
-         MainScene.consecutiveLosses++;
-         MainScene.consecutiveWins = 0;
-         this.scene.restart();
+          this.scene.restart();
       });
       restartHit.on('pointerup', () => {
          restartBody.y = 0;
@@ -4227,51 +4250,8 @@ export default class MainScene extends Phaser.Scene {
       return glow;
    }
 
-    getFlaskModifier() {
-      return this.challengeModifiers.find(m => m.id === this.currentChallengeModifier) || null;
-    }
-
     calcLevelTimer(level: number, totalFlasks: number): number {
-        let t = totalFlasks === 1 ? 10 : totalFlasks === 2 ? 18 : 27;
-        const modifier = this.getFlaskModifier();
-        if (modifier && modifier.timeMult) {
-            t = Math.round(t * modifier.timeMult);
-        }
-        const isBoss = level >= 35 && level % 10 === 5;
-        if (isBoss) {
-            t = totalFlasks === 1 ? 7 : totalFlasks === 2 ? 12 : 18;
-        } else {
-            // Initiation: levels 1-5 get more time
-            if (level <= 5) {
-                const multipliers = [3.0, 2.5, 2.0, 1.6, 1.3];
-                t = Math.round(t * multipliers[level - 1]);
-            }
-            // Adaptive adjustments based on recent performance
-            const results = MainScene.levelResults;
-            const cWins = MainScene.consecutiveWins;
-            const cLosses = MainScene.consecutiveLosses;
-            if (results.length >= 3) {
-                const wonResults = results.filter(r => r.won);
-                if (wonResults.length > 0) {
-                    const avgLeft = wonResults.reduce((s, r) => s + r.timeLeftPct, 0) / wonResults.length;
-                    if (avgLeft > 0.40) {
-                        t = Math.round(t * 0.85); // too easy, tighten
-                    } else if (avgLeft < 0.05 && cLosses === 0) {
-                        t = Math.round(t * 1.15); // too hard, loosen
-                    }
-                }
-            }
-            if (cWins >= 4) {
-                t = Math.round(t * 0.92);
-            }
-            if (cLosses >= 2) {
-                t = Math.round(t * 2);
-            }
-            if (level >= 30) {
-                t += Phaser.Math.Between(-1, 1);
-            }
-        }
-        return Phaser.Math.Clamp(t, 4, 45);
+        return totalFlasks * 12;
     }
 
     showLevelIntro(level: number) {
@@ -4337,17 +4317,15 @@ export default class MainScene extends Phaser.Scene {
       });
    }
 
-   update(time: number, delta: number) {
-    if (this.beltGraphics && !this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen) {
-      this.beltScrollX -= 280 * (delta / 1000); 
-      this.drawBeltPattern();
-    }
+    update(time: number, delta: number) {
+     if (this.beltGraphics && !this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isWelcomeOpen) {
+       this.beltScrollX -= 280 * (delta / 1000); 
+       this.drawBeltPattern();
+     }
 
-     if (this.currentFlask && !this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen) {
-        let speed = 240;
-        const mod = this.getFlaskModifier();
-        if (mod && mod.speedMult) speed *= mod.speedMult;
-        this.currentFlask.x += speed * (delta / 1000);
+      if (this.currentFlask && !this.isValidating && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isWelcomeOpen) {
+         const speed = 320;
+         this.currentFlask.x += speed * (delta / 1000);
         
         const f = this.currentFlask as any;
         const matchPercent = Colors.getSimilarityPercentage(f.currentDose, f.targetDose);
