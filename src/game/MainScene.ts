@@ -153,7 +153,6 @@ export default class MainScene extends Phaser.Scene {
   private shopLayer: Phaser.GameObjects.Container | null = null;
   private hintLayer: Phaser.GameObjects.Container | null = null;
   private isAdRunning = false;
-  private isWelcomeOpen = false;
   private wasRevivedThisLevel = false;
   private static highScore = 0;
   private currentTargetColor = 0xffffff;
@@ -604,7 +603,7 @@ export default class MainScene extends Phaser.Scene {
       delay: 1000,
       loop: true,
       callback: () => {
-          if (!this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && this.currentFlask && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isTutorialOpen && !this.isWelcomeOpen) {
+          if (!this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && this.currentFlask && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isTutorialOpen) {
              if (this.timeLeft > 0) {
                 this.timeLeft--;
                 this.timerText.setText(`⏱️ ${this.timeLeft}s`);
@@ -642,78 +641,18 @@ export default class MainScene extends Phaser.Scene {
 
     this.createPanel();
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
-      if (this.isShopOpen || this.isHintOpen || this.isAdRunning || this.isLevelSuccessPopupOpen || this.isValidating || this.isWelcomeOpen) return;
+      if (this.isShopOpen || this.isHintOpen || this.isAdRunning || this.isLevelSuccessPopupOpen || this.isValidating) return;
       if (event.key === '1' && this.tapData[0]) this.animateAndDispense(this.tapData[0]);
       else if (event.key === '2' && this.tapData[1]) this.animateAndDispense(this.tapData[1]);
       else if (event.key === '3' && this.tapData[2]) this.animateAndDispense(this.tapData[2]);
     });
+
+    this.spawnNextFlask();
+
+    if (!localStorage.getItem('tutorial_shown_v2')) {
+       this.time.delayedCall(800, () => this.showTutorial());
+    }
   }
-
-   showWelcomeScreen() {
-    this.isWelcomeOpen = true;
-    const w = this.scale.width;
-    const h = this.scale.height;
-
-    const overlay = this.add.container(w / 2, h / 2).setDepth(3000);
-
-    const bg = this.add.rectangle(0, 0, w, h, 0x0a0a2e).setDepth(3000);
-    const bgGlow = this.add.rectangle(0, 0, w, h, 0x1a1a4e, 0.3).setDepth(3001).setScale(0);
-    this.tweens.add({ targets: bgGlow, scale: 1.5, alpha: 0, duration: 2000, repeat: -1, ease: 'Sine.easeInOut' });
-
-    const title = this.add.text(0, -100, 'COLOR MIX', {
-      fontSize: '48px', color: '#ffd700', fontStyle: 'bold', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 6,
-    }).setOrigin(0.5).setDepth(3002);
-    this.tweens.add({ targets: title, scale: 1.03, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-    const subtitle = this.add.text(0, -45, '⚗️  Mix.  Match.  Master.  ⚗️', {
-      fontSize: '14px', color: '#a4b0be', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(3002);
-
-    const progressBg = this.add.rectangle(0, 30, 260, 14, 0x1e272c, 0.8).setStrokeStyle(1, 0x57606f).setDepth(3002);
-    const progressFill = this.add.graphics().setDepth(3003);
-    const progressLabel = this.add.text(0, 54, 'LOADING...', {
-      fontSize: '10px', color: '#57606f', fontFamily: 'monospace',
-    }).setOrigin(0.5).setDepth(3002);
-
-    overlay.add([bg, bgGlow, title, subtitle, progressBg, progressFill, progressLabel]);
-
-    let pct = 0;
-    const loadTimer = this.time.addEvent({
-      delay: 40,
-      loop: true,
-      callback: () => {
-        pct += 2;
-        if (pct > 100) pct = 100;
-        progressFill.clear();
-        progressFill.fillStyle(0x00f3ff, 1);
-        progressFill.fillRoundedRect(-128, 24, (pct / 100) * 256, 10, 5);
-        if (pct >= 100) {
-          loadTimer.remove();
-          progressLabel.setText('TAP TO PLAY');
-          progressLabel.setColor('#00f3ff');
-          this.tweens.add({ targets: progressLabel, alpha: 0.4, duration: 500, yoyo: true, repeat: -1 });
-
-          const tapHit = this.add.rectangle(0, 0, w, h).setInteractive().setDepth(3004).setAlpha(0.01);
-          overlay.add(tapHit);
-            tapHit.on('pointerdown', () => {
-            this.isWelcomeOpen = false;
-            this.tweens.add({
-              targets: overlay, alpha: 0, scale: 1.1, duration: 400, ease: 'Cubic.easeIn',
-              onComplete: () => {
-                overlay.destroy();
-                this.spawnNextFlask();
-                if (!localStorage.getItem('tutorial_shown_v2')) {
-                  this.time.delayedCall(800, () => this.showTutorial());
-                }
-              },
-            });
-          });
-        }
-      },
-    });
-  }
-
    showTutorial() {
     this.isTutorialOpen = true;
     localStorage.setItem('tutorial_shown_v2', '1');
@@ -4303,13 +4242,13 @@ export default class MainScene extends Phaser.Scene {
       });
    }
 
-    update(time: number, delta: number) {
-     if (this.beltGraphics && !this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isWelcomeOpen) {
-       this.beltScrollX -= 280 * (delta / 1000); 
-       this.drawBeltPattern();
-     }
+     update(time: number, delta: number) {
+      if (this.beltGraphics && !this.isValidating && this.timeLeft > 0 && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen) {
+        this.beltScrollX -= 280 * (delta / 1000); 
+        this.drawBeltPattern();
+      }
 
-      if (this.currentFlask && !this.isValidating && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen && !this.isWelcomeOpen) {
+       if (this.currentFlask && !this.isValidating && !this.isLevelSuccessPopupOpen && !this.isShopOpen && !this.isAdRunning && !this.isHintOpen) {
          const speed = 320;
          this.currentFlask.x += speed * (delta / 1000);
         
