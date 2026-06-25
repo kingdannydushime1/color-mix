@@ -1,12 +1,12 @@
 let pendingReward = false;
 let listenersInitialized = false;
 
-export const initListeners = () => {
+export const initListeners = (callbacks?: { onPause?: () => void; onResume?: () => void }) => {
   if (listenersInitialized) return;
   listenersInitialized = true;
 
-  window.addEventListener('gd-pause', () => {});
-  window.addEventListener('gd-resume', () => {});
+  window.addEventListener('gd-pause', () => callbacks?.onPause?.());
+  window.addEventListener('gd-resume', () => callbacks?.onResume?.());
   window.addEventListener('gd-reward', () => {
     pendingReward = true;
   });

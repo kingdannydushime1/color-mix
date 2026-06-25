@@ -476,7 +476,16 @@ export default class MainScene extends Phaser.Scene {
     this.checkDailyReward();
 
     this.input.on('pointerdown', () => {
-      GD.initListeners();
+      GD.initListeners({
+        onPause: () => {
+          this.isAdRunning = true;
+          Audio.pauseBgMusic();
+        },
+        onResume: () => {
+          this.isAdRunning = false;
+          Audio.resumeBgMusic();
+        },
+      });
       Audio.startBgMusic();
       Audio.initAudio();
     });
