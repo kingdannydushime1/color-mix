@@ -136,7 +136,6 @@ export default class MainScene extends Phaser.Scene {
   private levelTimerBase = 0;
   private activeConfettiGroup!: Phaser.GameObjects.Group;
   private undoIndicatorText!: Phaser.GameObjects.Text;
-  private musicIcon!: Phaser.GameObjects.Text;
   private victoryPopupContainer: Phaser.GameObjects.Container | null = null;
   
   // Stacking & Coin burst states
@@ -2137,32 +2136,19 @@ export default class MainScene extends Phaser.Scene {
         sBtnLabel.y = 15;
     });
 
-    // MUSIC toggle button
-    const mBtnX = Math.round(370 * r);
-    const mBtn = this.add.container(mBtnX, panelY + 230).setDepth(53);
-    const mBtnBase = this.add.rectangle(0, 3, 40, 40, 0x2d3436).setStrokeStyle(3, 0x000);
-    const mBtnBody = this.add.rectangle(0, 0, 40, 40, 0x636e72).setStrokeStyle(3, 0x000);
-    this.musicIcon = this.add.text(0, 0, '\u266B', { fontSize: '20px', color: '#fff' }).setOrigin(0.5);
-    mBtn.add([mBtnBase, mBtnBody, this.musicIcon]);
-    const mHit = this.add.rectangle(mBtnX, panelY + 230, 40, 40).setInteractive({ useHandCursor: true }).setDepth(55);
-    mHit.on('pointerdown', () => {
-        Audio.initAudio();
-        const on = Audio.toggleBgMusic();
-        this.musicIcon.setText(on ? '\u266B' : '\u2715');
-    });
-
     // Volume slider
-    const volLabel = this.add.text(mBtnX, panelY + 205, 'VOL', { fontSize: '7px', color: '#a4b0be', fontFamily: 'monospace' }).setOrigin(0.5).setDepth(55);
-    const volBarBg = this.add.rectangle(mBtnX, panelY + 218, 36, 4, 0x2d3436).setDepth(55);
-    const volBarFill = this.add.rectangle(mBtnX - 17, panelY + 218, 36 * Audio.getMasterVolume(), 4, 0x74b9ff).setOrigin(0, 0.5).setDepth(55);
-    const volKnob = this.add.circle(mBtnX - 17 + 36 * Audio.getMasterVolume(), panelY + 218, 5, 0xdfe6e9).setDepth(56).setInteractive({ useHandCursor: true, draggable: true });
-    const volKnobGlow = this.add.circle(mBtnX - 17 + 36 * Audio.getMasterVolume(), panelY + 218, 8, 0x74b9ff, 0.2).setDepth(55);
+    const volX = Math.round(370 * r);
+    const volLabel = this.add.text(volX, panelY + 205, 'VOL', { fontSize: '7px', color: '#a4b0be', fontFamily: 'monospace' }).setOrigin(0.5).setDepth(55);
+    const volBarBg = this.add.rectangle(volX, panelY + 218, 36, 4, 0x2d3436).setDepth(55);
+    const volBarFill = this.add.rectangle(volX - 17, panelY + 218, 36 * Audio.getMasterVolume(), 4, 0x74b9ff).setOrigin(0, 0.5).setDepth(55);
+    const volKnob = this.add.circle(volX - 17 + 36 * Audio.getMasterVolume(), panelY + 218, 5, 0xdfe6e9).setDepth(56).setInteractive({ useHandCursor: true, draggable: true });
+    const volKnobGlow = this.add.circle(volX - 17 + 36 * Audio.getMasterVolume(), panelY + 218, 8, 0x74b9ff, 0.2).setDepth(55);
     this.input.setDraggable(volKnob);
     volKnob.on('drag', (_p: any, dx: number) => {
-      let newX = Phaser.Math.Clamp(volKnob.x + dx, mBtnX - 17, mBtnX + 19);
+      let newX = Phaser.Math.Clamp(volKnob.x + dx, volX - 17, volX + 19);
       volKnob.x = newX;
       volKnobGlow.x = newX;
-      const vol = (newX - (mBtnX - 17)) / 36;
+      const vol = (newX - (volX - 17)) / 36;
       Audio.setMasterVolume(vol);
       volBarFill.width = 36 * vol;
     });

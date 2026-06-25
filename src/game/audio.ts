@@ -1,12 +1,10 @@
 let audioCtx: AudioContext | null = null;
-let bgAudio: HTMLAudioElement | null = null;
-let bgMusicEnabled = false;
+
 let masterVolume = 0.7;
 
 export const getMasterVolume = () => masterVolume;
 export const setMasterVolume = (v: number) => {
   masterVolume = Math.max(0, Math.min(1, v));
-  if (bgAudio) bgAudio.volume = masterVolume * 0.35;
 };
 
 export const initAudio = () => {
@@ -382,47 +380,13 @@ export const playSplash = () => {
   source.start(now);
 };
 
-export const setBgMusicEnabled = (v: boolean) => { bgMusicEnabled = v; };
-
-export const startBgMusic = () => {
-  if (!bgAudio) {
-    bgAudio = new Audio('/bg-music.mp3');
-    bgAudio.loop = true;
-    bgAudio.volume = 0.35;
-  }
-  bgAudio.play().catch(() => {});
-};
-
-export const stopBgMusic = () => {
-  if (bgAudio) {
-    bgAudio.pause();
-    bgAudio = null;
-  }
-};
-
-export const pauseBgMusic = () => {
-  if (bgAudio && !bgAudio.paused) {
-    bgAudio.pause();
-  }
-};
-
-export const resumeBgMusic = () => {
-  if (bgAudio && bgMusicEnabled) {
-    bgAudio.play().catch(() => {});
-  }
-};
-
-export const toggleBgMusic = (): boolean => {
-  bgMusicEnabled = !bgMusicEnabled;
-  if (bgMusicEnabled) {
-    startBgMusic();
-  } else {
-    pauseBgMusic();
-  }
-  return bgMusicEnabled;
-};
-
-export const isBgMusicEnabled = () => bgMusicEnabled;
+export const setBgMusicEnabled = (_v: boolean) => {};
+export const startBgMusic = () => {};
+export const stopBgMusic = () => {};
+export const pauseBgMusic = () => {};
+export const resumeBgMusic = () => {};
+export const toggleBgMusic = (): boolean => false;
+export const isBgMusicEnabled = () => false;
 
 export const haptic = (ms = 10) => {
   if (navigator && navigator.vibrate) {
